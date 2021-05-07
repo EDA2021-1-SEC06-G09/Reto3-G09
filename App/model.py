@@ -48,14 +48,18 @@ def initCatalog():
     
     catalog['events'] = lt.newList('ARRAY_LIST')
     catalog['content_features'] = mp.newMap(20, maptype='PROBING', loadfactor=0.5)
-    catalog['sentiment_values'] = mp.newMap()
     catalog['listening_events'] = mp.newMap()
     catalog['genres'] = mp.newMap(10, maptype='PROBING', loadfactor=0.5)
-
+    catalog['hashtags'] = mp.newMap(maptype='PROBING', loadfactor=0.5)
     return catalog
 
 
 # Funciones para agregar informacion al catalogo
+def addHashtag(catalog, hashtag):
+    if(hashtag['vader_avg'] != ''):
+        mp.put(catalog['hashtags'], hashtag['hashtag'], float(hashtag['vader_avg']))
+
+
 def addGenre(catalog, genrename, mintempo, maxtempo):
     genre = newGenre(genrename, mintempo, maxtempo)
     mp.put(catalog['genres'], genrename, genre)
@@ -79,22 +83,53 @@ def addEvent(catalog, event):
 
 
 def updateFeatures(table, event):
+    '''Todos los features estan en una tabla de Hash, el key es el feature y el value es un rbt
+    este rbt tiene key un valor de instrumentalness (por ejemplo) y como valor un diccionario
+    el diccionario tiene dos elementos:
+        el elemento ['valueevents'] que contiene una array list con todos los eventos de reproduccion
+        el elemento ['track_ids'] que contiene un hash table con key = track_id y value = evento con ese track id
+
+    el anadido fue el segundo elemento. 
+    Lo hice de esta manera para poder completar los requerimientos 2 y 3, que piden reproducciones unicas y comparar diccionarios.
+
+    Otra cosa es que ahora solo se crean RBTs para features con valores que tiene sentido comparar, antes se creaba para todo feature
+
+    Ademas hice cambios para que los keys de los RBT sean floats, antes eran strings.
+    '''
+    i = 1
     for feature in event:
-        if mp.size(table) < len(event):
+        
+        if mp.size(table) < 9:
+            print(mp.size(table))
             tree = om.newMap(omaptype='RBT', comparefunction=cmpFunction)
-            valueevents = lt.newList('ARRAY_LIST')
-            lt.addLast(valueevents, event)
-            om.put(tree, event[feature], valueevents)
+            dict = {'valueevents' : None, 'track_ids':None}
+
+            dict['valueevents'] = lt.newList(datastructure='ARRAY_LIST')
+            dict['track_ids'] = mp.newMap(maptype='PROBING', loadfactor=0.5)
+
+            lt.addLast(dict['valueevents'], event)
+            mp.put(dict['track_ids'], event['track_id'], event)
+            
+            om.put(tree, float(event[feature]), dict)
             mp.put(table, feature, tree)
         else:
             tree = me.getValue(mp.get(table, feature))
-            if om.contains(tree, event[feature]):
-                valueevents = me.getValue(om.get(tree, event[feature]))
-                lt.addLast(valueevents, event)
+            if om.contains(tree, float(event[feature])):
+                dict = me.getValue(om.get(tree, float(event[feature])))
+                lt.addLast(dict['valueevents'], event)
+                mp.put(dict['track_ids'], event['track_id'], event)
             else:
-                valueevents = lt.newList('ARRAY_LIST')
-                lt.addLast(valueevents, event)
-                om.put(tree, event[feature], valueevents)
+                dict = {'valueevents' : None, 'track_ids':None}
+                dict['track_ids'] = mp.newMap(maptype='PROBING', loadfactor=0.5)
+                dict['valueevents'] = lt.newList(datastructure='ARRAY_LIST')
+
+                lt.addLast(dict['valueevents'], event)
+                mp.put(dict['track_ids'], event['track_id'], event)
+
+                om.put(tree, float(event[feature]), dict)
+        if i == 9:
+            break
+        i += 1
 
 
 # Funciones para creacion de datos
@@ -102,7 +137,7 @@ def newGenre(name, mintempo, maxtempo):
     genre = {'name': name.lower(),
              'min_tempo': mintempo,
              'max_tempo': maxtempo,
-             'events': lt.newList('ARRAY_LIST')}
+             'events': lt.newList(datastructure='ARRAY_LIST')}
     return genre
 
 
@@ -112,13 +147,33 @@ def getCharacteristicReproductions(catalog, characteristic, minrange, toprange):
     total = 0
     artists = lt.newList('ARRAY')
     for value in lt.iterator(om.values(tree, minrange, toprange)):
-        total += lt.size(value)
-        for event in lt.iterator(value):
+        events = value['valueevents']
+        total += lt.size(events)
+    
+        for event in lt.iterator(events):
             if not lt.isPresent(artists, event['artist_id']):
                 lt.addLast(artists, event['artist_id'])
     total2 = lt.size(artists)
     artists.clear()
     return total, total2
+
+def getPartyMusic(catalog, minEne, maxEne, minDan, maxDan):
+    EneValues = om.values(me.getValue(mp.get(catalog['content_features'], 'energy')),minEne, maxEne)
+    DanValues = om.values(me.getValue(mp.get(catalog['content_features'], 'danceability')), minDan, maxDan)
+    lstEnergyDance = lt.newList(datastructure='ARRAY_LIST')
+
+    for dictDance in lt.iterator(DanValues):
+        trackIdsList_Dance = mp.valueSet(dictDance['track_ids'])
+        for dictEnergy in lt.iterator(EneValues):
+            for event in lt.iterator(trackIdsList_Dance):
+                if(mp.contains(dictEnergy['track_ids'], event['track_id']) == True):
+                    lt.addLast(lstEnergyDance, event)
+
+    return lstEnergyDance
+    
+
+
+        
 
 
 def getStudyMusic(catalog, mininst, maxinst, mintempo, maxtempo):

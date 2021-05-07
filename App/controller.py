@@ -38,6 +38,7 @@ def initCatalog():
 def loadData(catalog):
     loadGenres(catalog)
     loadFeatures(catalog)
+    loadHashtags(catalog)
     
 
 def loadGenres(catalog):
@@ -58,7 +59,7 @@ def loadGenres(catalog):
 def addUserGenre(catalog, genrename, mintempo, maxtempo):
     model.addUserGenre(catalog, genrename, mintempo, maxtempo)
 
-
+#context_content_features-small.csv
 def loadFeatures(catalog):
     featuresfile = cf.data_dir + "context_content_features-small.csv"
     input_file = csv.DictReader(open(featuresfile, encoding='utf-8'))
@@ -66,6 +67,11 @@ def loadFeatures(catalog):
         model.assignGenre(catalog, event)
         model.addEvent(catalog, event)
 
+def loadHashtags(catalog):
+    hashtagsfile = cf.data_dir + 'sentiment_values.csv'
+    input_file = csv.DictReader(open(hashtagsfile, encoding='utf-8'))
+    for hashtag in input_file:
+        model.addHashtag(catalog, hashtag)
 
 # Funciones de ordenamiento
 
@@ -73,6 +79,8 @@ def loadFeatures(catalog):
 def getCharacteristicReproductions(catalog, characteristic, minrange, toprange):
     return model.getCharacteristicReproductions(catalog, characteristic, minrange, toprange)
 
+def getPartyMusic(catalog, minEne, maxEne, minDan, maxDan):
+    return model.getPartyMusic(catalog, minEne, maxEne, minDan, maxDan)
 
 def getStudyMusic(catalog, mininst, maxinst, mintempo, maxtempo):
     return model.getStudyMusic(catalog, mininst, maxinst, mintempo, maxtempo)

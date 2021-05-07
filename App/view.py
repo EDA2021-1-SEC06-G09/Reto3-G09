@@ -26,7 +26,8 @@ import controller
 from DISClib.ADT import list as lt
 from DISClib.ADT import map as mp
 assert cf
-
+from DISClib.ADT import list as lt
+import random
 
 """
 La vista se encarga de la interacción con el usuario
@@ -47,6 +48,14 @@ def printMenu():
 
 catalog = None
 
+def printRandomSongs(result):
+    size = lt.size(result)
+    i = 0
+    while i < 5:
+        posicion = random.randint(1, size)
+        evento = lt.getElement(result, posicion)
+        print('track 1: ', evento['track_id'],' with energy of ', evento['energy'],' and danceability of ', evento['danceability'])
+        i +=1
 
 def initCatalog():
     return controller.initCatalog()
@@ -66,15 +75,26 @@ while True:
         catalog = initCatalog()
         loadData(catalog)
 
+
     elif int(inputs[0]) == 2:
         characteristic = input("Nombre de la característica de contenido: ")
-        minrange = input("Valor mínimo de la característica: ")
-        toprange = input("Valor máximo de la característica: ")
+        minrange = float(input("Valor mínimo de la característica: "))
+        toprange = float(input("Valor máximo de la característica: "))
         result = controller.getCharacteristicReproductions(catalog, characteristic, minrange, toprange)
         print("\nReproducciones totales:", result[0], "\nArtistas únicos:", result[1])
 
     elif int(inputs[0]) == 3:
-        pass
+        minEne = float(input("Valor mínimo de Energy: "))
+        maxEne = float(input("Valor mínimo de Energy: "))
+        minDan = float(input("Valor mínimo de Dance: "))
+        maxDan = float(input("Valor mínimo de Dance: "))
+        result = controller.getPartyMusic(catalog, minEne, maxEne, minDan, maxDan)
+        print('++++++ Req No. 2 results... ++++++')
+        print('Energy is between ', minEne, ' and ', maxEne)
+        print('Danceability is between', minDan,  ' and ', maxDan)
+        print('total of unique track in events: ', lt.size(result), '\n')
+        printRandomSongs(result)
+
 
     elif int(inputs[0]) == 4:
         mininst = float(input("Valor mínimo de instrumentalness: "))
