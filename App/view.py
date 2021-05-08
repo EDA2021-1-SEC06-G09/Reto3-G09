@@ -120,6 +120,8 @@ while True:
     elif int(inputs[0]) == 6:
         minhour = input("Hora inicial del rango de tiempo: ")
         maxhour = input("Hora final del rango de tiempo: ")
+        result = controller.generosEnRango(catalog, minhour, maxhour)
+        print(result)
 
     else:
         catalog.clear()

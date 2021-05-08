@@ -66,6 +66,7 @@ def loadFeatures(catalog):
     for event in input_file:
         model.assignGenre(catalog, event)
         model.addEvent(catalog, event)
+        model.updateHour_Tree(catalog, event)
 
 def loadHashtags(catalog):
     hashtagsfile = cf.data_dir + 'sentiment_values.csv'
@@ -88,3 +89,6 @@ def getStudyMusic(catalog, mininst, maxinst, mintempo, maxtempo):
 
 def getGenreReproductions(catalog, genrename):
     pass
+
+def generosEnRango(catalog, minHour, maxHour):
+    return model.generosEnRango(catalog, minHour, maxHour)
