@@ -194,13 +194,16 @@ def newGenre(name, mintempo, maxtempo):
 # Funciones de consulta
 def getCharacteristicReproductions(catalog, characteristic, minrange, toprange):
     tree = me.getValue(mp.get(catalog['content_features'], characteristic))
+    #get => O(1)
     total = 0
     artists = lt.newList('ARRAY')
     for value in lt.iterator(om.values(tree, minrange, toprange)):
+        #O(N) donde N es la cantidad de valores de feature en el rango pedido.
         events = value['valueevents']
         total += lt.size(events)
     
         for event in lt.iterator(events):
+            #O(M), donde M es la cantidad de canciones en el rango pedido del Feature
             if not lt.isPresent(artists, event['artist_id']):
                 lt.addLast(artists, event['artist_id'])
     total2 = lt.size(artists)
@@ -210,12 +213,16 @@ def getCharacteristicReproductions(catalog, characteristic, minrange, toprange):
 def getPartyMusic(catalog, minEne, maxEne, minDan, maxDan):
     EneValues = om.values(me.getValue(mp.get(catalog['content_features'], 'energy')),minEne, maxEne)
     DanValues = om.values(me.getValue(mp.get(catalog['content_features'], 'danceability')), minDan, maxDan)
+    #Values en un rango (RBT) => O()
     lstEnergyDance = lt.newList(datastructure='ARRAY_LIST')
 
     for dictDance in lt.iterator(DanValues):
+        #O(N) donde N es la cantidad de valores de feature en el rango pedido de Danceability.
         trackIdsList_Dance = mp.valueSet(dictDance['track_ids'])
         for dictEnergy in lt.iterator(EneValues):
+            #O(N') donde N' es la cantidad de valores de feature en el rango pedido de Energy.
             for event in lt.iterator(trackIdsList_Dance):
+                #O(M), donde M es la cantidad de canciones en el rango pedido de Danceability.
                 if(mp.contains(dictEnergy['track_ids'], event['track_id']) == True):
                     lt.addLast(lstEnergyDance, event)
 
@@ -227,7 +234,7 @@ def generosEnRango(catalog, minHour, maxHour):
     minHour = DateMinHour.time()
     DateMaxHour = dt.datetime.strptime(maxHour, '%H:%M:%S')
     maxHour = DateMaxHour.time()
-
+    #Cada funcion de la libreria datetime usada es O(1)
     Reggae = 0
     Down_Tempo = 0
     Chill_out = 0
@@ -240,15 +247,18 @@ def generosEnRango(catalog, minHour, maxHour):
     Total = 0
     
     treeValues = om.values(catalog['hourTree'], minHour, maxHour)
-
+    #Values en un rango (RBT) => O()
     for value in lt.iterator(treeValues):
+        #O(N) donde N es la cantidad de valores en el rango pedido de tiempo.
         for genre in lt.iterator(mp.valueSet(catalog['genres'])):
+            #O(C) donde C es la cantidad de generos, hay 9 generos.
             genreName = genre['name']
             generoLista = mp.get(value, genreName)
-
             if generoLista is not None:
                 Lista = me.getValue(generoLista)
+                #get => O(1)
                 Total += lt.size(Lista)
+                #size => O(1)
                 if(genreName == "reggae"):
                     Reggae += lt.size(Lista)
                 elif(genreName == "down-tempo"):
@@ -270,18 +280,23 @@ def generosEnRango(catalog, minHour, maxHour):
 
     generos = (Reggae, Down_Tempo, Chill_out, hip_hop, Jazz_and_Funk, Pop, RyB, Rock, Metal)
     genero = maxVariable(generos)
+    #Esta es una funcion que defini por fuera para evitar ocupar mucho espacio en una sola funcion, pero es O(1)
 
     eventosConVader = om.newMap(omaptype='RBT', comparefunction=compareVader)
     for value in lt.iterator(treeValues):
+        #O(N) donde N es la cantidad de valores en el rango pedido de tiempo.
         generoBuscado = mp.get(value, genero)
         if generoBuscado is not None:
             Lista = me.getValue(generoBuscado)
             for event in lt.iterator(Lista):
+                #O(M) donde M es la cantidad de eventos asocioados al genero con mas reproducciones
+                #En cada llave del RBT que tiene como llaves una hora.
                 key = (event['user_id'], event['track_id'], event['created_at'])
                 pareja = mp.get(catalog['UserHashtags'], key)
                 hashtags = me.getValue(pareja)
                 seenHashtags = 0
                 for hashtag in lt.iterator(hashtags):
+                    #O(H) Donde H es la cantidad de Hashtags asociados al evento.
                     promedioVader = 0
                     Hashtag_Vader = mp.get(catalog['hashtags'], hashtag)
                     if Hashtag_Vader is not None:
