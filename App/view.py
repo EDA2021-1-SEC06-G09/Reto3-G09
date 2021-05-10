@@ -25,6 +25,8 @@ import sys
 import controller
 from DISClib.ADT import list as lt
 from DISClib.ADT import map as mp
+from DISClib.ADT import orderedmap as om
+from DISClib.DataStructures import mapentry as me
 assert cf
 from DISClib.ADT import list as lt
 import random
@@ -57,8 +59,36 @@ def printRandomSongs(result):
         print('track 1: ', evento['track_id'],' with energy of ', evento['energy'],' and danceability of ', evento['danceability'])
         i +=1
 
+def printReq5(generos, genero, total, arbol):
+    print('En el rango de horas dado hay un total de ', total, ' Reproducciones...')
+    print('Reggae tiene ', generos[0], ' Reproducciones')
+    print('Chill Out tiene ', generos[2], ' Reproducciones')
+    print('Hip-Hop tiene ', generos[3], ' Reproducciones')
+    print('Jazz and Funk tiene ', generos[4], ' Reproducciones')
+    print('Pop tiene ', generos[5], ' Reproducciones')
+    print('R&B tiene ', generos[6], ' Reproducciones')
+    print('Rock tiene ', generos[7], ' Reproducciones')
+    print('Metal tiene ', generos[8], ' Reproducciones')
+    print('Down Tempo tiene ', generos[1], ' Reproducciones')
+    print('El genero con más reproducciones es ', genero, '!\n\n')
+    print('3 Tracks con su respectivo Vader son:')
+    Req5Anexo(arbol)
+    
+
+def Req5Anexo(arbol):
+    i = 0
+    while i < 3:
+        mayorVader = om.maxKey(arbol)
+        evento = me.getValue(om.get(arbol, mayorVader))
+        print('El evento con track_id: ', evento['track_id'], ' con un Vader de ', mayorVader)
+        om.deleteMax(arbol)
+        i+=1
+
+
+
 def initCatalog():
     return controller.initCatalog()
+
 
 
 def loadData(catalog):
@@ -121,7 +151,7 @@ while True:
         minhour = input("Hora inicial del rango de tiempo: ")
         maxhour = input("Hora final del rango de tiempo: ")
         result = controller.generosEnRango(catalog, minhour, maxhour)
-        print(result)
+        printReq5(result[0], result[1], result[2], result[3])
 
     else:
         catalog.clear()

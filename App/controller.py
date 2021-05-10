@@ -23,7 +23,7 @@
 import config as cf
 import model
 import csv
-
+from DISClib.ADT import map as mp
 
 """
 El controlador se encarga de mediar entre la vista y el modelo.
@@ -39,6 +39,7 @@ def loadData(catalog):
     loadGenres(catalog)
     loadFeatures(catalog)
     loadHashtags(catalog)
+    loadUserHashtags(catalog)
     
 
 def loadGenres(catalog):
@@ -73,6 +74,12 @@ def loadHashtags(catalog):
     input_file = csv.DictReader(open(hashtagsfile, encoding='utf-8'))
     for hashtag in input_file:
         model.addHashtag(catalog, hashtag)
+
+def loadUserHashtags(catalog):
+    userHashtagsFile = cf.data_dir + 'user_track_hashtag_timestamp-small.csv'
+    input_file = csv.DictReader(open(userHashtagsFile, encoding='utf-8'))
+    for event in input_file:
+        model.updateUserHashtags(catalog, event)
 
 # Funciones de ordenamiento
 

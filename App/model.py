@@ -25,7 +25,6 @@
  """
 
 import datetime as dt
-from sys import meta_path
 import config as cf
 from DISClib.ADT import list as lt
 from DISClib.ADT import map as mp
@@ -47,11 +46,12 @@ def initCatalog():
                'listening_events': None,
                'genres': None}
     
-    catalog['events'] = lt.newList('ARRAY_LIST')
+    catalog['events'] = lt.newList(datastructure='ARRAY_LIST')
     catalog['content_features'] = mp.newMap(20, maptype='PROBING', loadfactor=0.5)
     catalog['hourTree'] = om.newMap(omaptype='RBT', comparefunction=compareHours)
     catalog['genres'] = mp.newMap(10, maptype='PROBING', loadfactor=0.5)
     catalog['hashtags'] = mp.newMap(maptype='PROBING', loadfactor=0.5)
+    catalog['UserHashtags'] = mp.newMap(maptype='PROBING', loadfactor=0.5)
     return catalog
 
 
@@ -90,6 +90,16 @@ def updateHour_Tree(catalog, event):
                     lt.addLast(eventsInGenre, event)
                 
                 
+def updateUserHashtags(catalog, event):
+    key = (event['user_id'], event['track_id'], event['created_at'])
+    pareja = mp.get(catalog['UserHashtags'], key)
+    if(pareja is None):
+        listaHashtags = lt.newList(datastructure='ARRAY_LIST')
+        lt.addLast(listaHashtags, event['hashtag'])
+        mp.put(catalog['UserHashtags'], key, listaHashtags)
+    else:
+        listaHashtags = me.getValue(pareja)
+        lt.addLast(listaHashtags, event['hashtag'])
 
 
 
@@ -215,10 +225,8 @@ def getPartyMusic(catalog, minEne, maxEne, minDan, maxDan):
 def generosEnRango(catalog, minHour, maxHour):
     DateMinHour = dt.datetime.strptime(minHour, '%H:%M:%S')
     minHour = DateMinHour.time()
-    print(minHour)
     DateMaxHour = dt.datetime.strptime(maxHour, '%H:%M:%S')
     maxHour = DateMaxHour.time()
-    print(maxHour)
 
     Reggae = 0
     Down_Tempo = 0
@@ -231,7 +239,9 @@ def generosEnRango(catalog, minHour, maxHour):
     Metal = 0
     Total = 0
     
-    for value in lt.iterator(om.values(catalog['hourTree'], minHour, maxHour)):
+    treeValues = om.values(catalog['hourTree'], minHour, maxHour)
+
+    for value in lt.iterator(treeValues):
         for genre in lt.iterator(mp.valueSet(catalog['genres'])):
             genreName = genre['name']
             generoLista = mp.get(value, genreName)
@@ -258,10 +268,59 @@ def generosEnRango(catalog, minHour, maxHour):
                 elif(genreName == "metal"):
                     Metal += lt.size(Lista)
 
-                
-    print(Reggae)
-    print(Metal)
-    print(Total)
+    generos = (Reggae, Down_Tempo, Chill_out, hip_hop, Jazz_and_Funk, Pop, RyB, Rock, Metal)
+    genero = maxVariable(generos)
+
+    eventosConVader = om.newMap(omaptype='RBT', comparefunction=compareVader)
+    for value in lt.iterator(treeValues):
+        generoBuscado = mp.get(value, genero)
+        if generoBuscado is not None:
+            Lista = me.getValue(generoBuscado)
+            for event in lt.iterator(Lista):
+                key = (event['user_id'], event['track_id'], event['created_at'])
+                pareja = mp.get(catalog['UserHashtags'], key)
+                hashtags = me.getValue(pareja)
+                seenHashtags = 0
+                for hashtag in lt.iterator(hashtags):
+                    promedioVader = 0
+                    Hashtag_Vader = mp.get(catalog['hashtags'], hashtag)
+                    if Hashtag_Vader is not None:
+                        Vader = me.getValue(Hashtag_Vader)
+                        promedioVader += Vader
+                        seenHashtags += 1
+                    if hashtag == lt.lastElement(hashtags):
+                        if(seenHashtags != 0):
+                            promedioVader = (promedioVader/seenHashtags)
+
+                if(promedioVader != 0):
+                    om.put(eventosConVader, promedioVader, event)
+    return generos, genero, Total, eventosConVader
+
+
+def maxVariable(generos):
+    maximo = max(generos)
+    if maximo == generos[0]:
+        string = 'reggae'
+    elif maximo == generos[1]:
+        string = "down-tempo"
+    elif maximo == generos[2]:
+        string = "chill-out"
+    elif maximo == generos[3]:
+        string = "hip-hop"
+    elif maximo == generos[4]:
+        string = "jazz and funk"
+    elif maximo == generos[5]:
+        string = "pop"
+    elif maximo == generos[6]:
+        string = "r&b"
+    elif maximo == generos[7]:
+        string = "rock"
+    elif maximo == generos[8]:
+        string = 'metal'
+    return string
+
+
+
 
 
 def getStudyMusic(catalog, mininst, maxinst, mintempo, maxtempo):
@@ -285,4 +344,11 @@ def compareHours(Hour1, Hour2):
     else:
         return -1
 
+def compareVader(Vader1, Vader2):
+    if(Vader1 == Vader2):
+        return 0
+    if(Vader1 > Vader2):
+        return 1
+    else:
+        return -1
 # Funciones de ordenamiento
