@@ -58,9 +58,9 @@ def loadGenres(catalog):
 
 
 def addUserGenre(catalog, genrename, mintempo, maxtempo):
-    model.addUserGenre(catalog, genrename, mintempo, maxtempo)
+    return model.addUserGenre(catalog, genrename, mintempo, maxtempo)
 
-#context_content_features-small.csv
+
 def loadFeatures(catalog):
     featuresfile = cf.data_dir + "context_content_features-small.csv"
     input_file = csv.DictReader(open(featuresfile, encoding='utf-8'))
@@ -69,11 +69,13 @@ def loadFeatures(catalog):
         model.addEvent(catalog, event)
         model.updateHour_Tree(catalog, event)
 
+
 def loadHashtags(catalog):
     hashtagsfile = cf.data_dir + 'sentiment_values.csv'
     input_file = csv.DictReader(open(hashtagsfile, encoding='utf-8'))
     for hashtag in input_file:
         model.addHashtag(catalog, hashtag)
+
 
 def loadUserHashtags(catalog):
     userHashtagsFile = cf.data_dir + 'user_track_hashtag_timestamp-small.csv'
@@ -81,21 +83,18 @@ def loadUserHashtags(catalog):
     for event in input_file:
         model.updateUserHashtags(catalog, event)
 
+
 # Funciones de ordenamiento
 
 # Funciones de consulta sobre el catálogo
 def getCharacteristicReproductions(catalog, characteristic, minrange, toprange):
     return model.getCharacteristicReproductions(catalog, characteristic, minrange, toprange)
 
-def getPartyMusic(catalog, minEne, maxEne, minDan, maxDan):
-    return model.getPartyMusic(catalog, minEne, maxEne, minDan, maxDan)
-
-def getStudyMusic(catalog, mininst, maxinst, mintempo, maxtempo):
-    return model.getStudyMusic(catalog, mininst, maxinst, mintempo, maxtempo)
-
+def getMusic(catalog, min1, max1, min2, max2, name1, name2):
+    return model.getMusic(catalog, min1, max1, min2, max2, name1, name2)
 
 def getGenreReproductions(catalog, genrename):
-    pass
+    return model.getGenreReproductions(catalog, genrename)
 
 def generosEnRango(catalog, minHour, maxHour):
     return model.generosEnRango(catalog, minHour, maxHour)

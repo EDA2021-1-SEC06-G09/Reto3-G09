@@ -50,27 +50,48 @@ def printMenu():
 
 catalog = None
 
-def printRandomSongs(result):
+
+def initCatalog():
+    return controller.initCatalog()
+
+
+def loadData(catalog):
+    return controller.loadData(catalog)
+
+
+# Funciones de impresion
+def printRandomSongs(result, name1, name2):
     size = lt.size(result)
     i = 0
     while i < 5:
         posicion = random.randint(1, size)
         evento = lt.getElement(result, posicion)
-        print('track 1: ', evento['track_id'],' with energy of ', evento['energy'],' and danceability of ', evento['danceability'])
+        print('Track', i+1, ':', evento['track_id'],'con', name1, 'de', evento[name1],'y', name1, 'de', evento[name2])
         i +=1
 
+
+def printGenresInfo(genrelist, totalcount, countlist, artists, artistcountlist):
+    print("\nReproducciones totales:", totalcount)
+    for i in range(1, len(genrelist)+1):
+        print("\n", "="*8, genrelist[i-1].upper(), "="*8, "\nReproducciones:", lt.getElement(countlist, i),
+              "\nArtistas únicos:", lt.getElement(artistcountlist, i), "\n", "-"*5, "Algunos artistas", "-"*5)
+        genreartists = lt.getElement(artists, i)
+        for n in range(1,11):
+            print("Artista", n, ":", lt.getElement(genreartists, n))
+
+
 def printReq5(generos, genero, total, arbol):
-    print('En el rango de horas dado hay un total de ', total, ' Reproducciones...')
-    print('Reggae tiene ', generos[0], ' Reproducciones')
-    print('Chill Out tiene ', generos[2], ' Reproducciones')
-    print('Hip-Hop tiene ', generos[3], ' Reproducciones')
-    print('Jazz and Funk tiene ', generos[4], ' Reproducciones')
-    print('Pop tiene ', generos[5], ' Reproducciones')
-    print('R&B tiene ', generos[6], ' Reproducciones')
-    print('Rock tiene ', generos[7], ' Reproducciones')
-    print('Metal tiene ', generos[8], ' Reproducciones')
-    print('Down Tempo tiene ', generos[1], ' Reproducciones')
-    print('El genero con más reproducciones es ', genero, '!\n\n')
+    print('\nEn el rango de horas dado hay un total de', total, 'reproducciones...')
+    print('Reggae tiene', generos[0], 'reproducciones')
+    print('Chill Out tiene', generos[2], 'reproducciones')
+    print('Hip-Hop tiene', generos[3], 'reproducciones')
+    print('Jazz and Funk tiene', generos[4], 'reproducciones')
+    print('Pop tiene', generos[5], 'reproducciones')
+    print('R&B tiene', generos[6], 'reproducciones')
+    print('Rock tiene', generos[7], 'reproducciones')
+    print('Metal tiene', generos[8], 'reproducciones')
+    print('Down Tempo tiene', generos[1], 'reproducciones')
+    print('El genero con más reproducciones es', genero, '!\n\n')
     print('3 Tracks con su respectivo Vader son:')
     Req5Anexo(arbol)
     
@@ -80,19 +101,10 @@ def Req5Anexo(arbol):
     while i < 3:
         mayorVader = om.maxKey(arbol)
         evento = me.getValue(om.get(arbol, mayorVader))
-        print('El evento con track_id: ', evento['track_id'], ' con un Vader de ', mayorVader)
+        print('El evento con track_id:', evento['track_id'], 'con un Vader de', mayorVader)
         om.deleteMax(arbol)
         i+=1
 
-
-
-def initCatalog():
-    return controller.initCatalog()
-
-
-
-def loadData(catalog):
-    return controller.loadData(catalog)
 
 """
 Menu principal
@@ -105,7 +117,6 @@ while True:
         catalog = initCatalog()
         loadData(catalog)
 
-
     elif int(inputs[0]) == 2:
         characteristic = input("Nombre de la característica de contenido: ")
         minrange = float(input("Valor mínimo de la característica: "))
@@ -116,35 +127,43 @@ while True:
     elif int(inputs[0]) == 3:
         minEne = float(input("Valor mínimo de Energy: "))
         maxEne = float(input("Valor mínimo de Energy: "))
-        minDan = float(input("Valor mínimo de Dance: "))
-        maxDan = float(input("Valor mínimo de Dance: "))
-        result = controller.getPartyMusic(catalog, minEne, maxEne, minDan, maxDan)
-        print('++++++ Req No. 2 results... ++++++')
-        print('Energy is between ', minEne, ' and ', maxEne)
-        print('Danceability is between', minDan,  ' and ', maxDan)
-        print('total of unique track in events: ', lt.size(result), '\n')
-        printRandomSongs(result)
-
+        minDan = float(input("Valor mínimo de Danceability: "))
+        maxDan = float(input("Valor mínimo de Danceability: "))
+        result = controller.getMusic(catalog, minEne, maxEne, minDan, maxDan, "energy", "danceability")
+        print('\nReproducciones totales:', lt.size(result))
+        printRandomSongs(result, "energy", "danceability")
 
     elif int(inputs[0]) == 4:
-        mininst = float(input("Valor mínimo de instrumentalness: "))
-        maxinst = float(input("Valor máximo de instrumentalness: "))
-        mintempo = float(input("Valor mínimo de tempo: "))
-        maxtempo = float(input("Valor máximo de tempo: "))
-        result = controller.getStudyMusic(catalog, mininst, maxinst, mintempo, maxtempo) 
+        minInst = float(input("Valor mínimo de Instrumentalness: "))
+        maxInst = float(input("Valor máximo de Instrumentalness: "))
+        minTempo = float(input("Valor mínimo de Tempo: "))
+        maxTempo = float(input("Valor máximo de Tempo: "))
+        result = controller.getMusic(catalog, minInst, maxInst, minTempo, maxTempo, "instrumentalness", "tempo")
+        print('\nReproducciones totales:', lt.size(result))
+        printRandomSongs(result, "instrumentalness", "tempo")
 
     elif int(inputs[0]) == 5:
-        genreslist = input("Nombre de los géneros (separados por coma): ").lower().split(',')
-        #totalcount = 0
-        #countlist = lt.newList('ARRAY_LIST')
+        genreslist = input("Nombre de los géneros (separados por coma sin espacios): ").lower().split(',')
+        totalcount = 0
+        countlist = lt.newList('ARRAY_LIST')
+        artists = lt.newList('ARRAY_LIST')
+        artistcountlist = lt.newList('ARRAY_LIST')
         for genrename in genreslist:
-            if not mp.contains(catalog['genres'], genrename):
+            if not mp.contains(catalog['genres'], genrename.lower()):
                 mintempo = float(input("Valor mínimo de tempo del género " + genrename + ": "))
                 maxtempo = float(input("Valor máximo de tempo del género" + genrename + ": "))
-                controller.addUserGenre(catalog, genrename, mintempo, maxtempo)
-            #result = controller.getGenreReproductions(catalog, genrename)
-            #totalcount += result[0]
-            #lt.addLast(countlist, result[0])
+                newgenrecount = controller.addUserGenre(catalog, genrename, mintempo, maxtempo)
+                totalcount += newgenrecount[0]
+                lt.addLast(countlist, newgenrecount[0])
+                lt.addLast(artists, newgenrecount[1])
+                lt.addLast(artistcountlist, lt.size(newgenrecount[1]))
+            else:
+                result = controller.getGenreReproductions(catalog, genrename)
+                totalcount += result[0]
+                lt.addLast(countlist, result[0])
+                lt.addLast(artists, result[1])
+                lt.addLast(artistcountlist, lt.size(result[1]))
+        printGenresInfo(genreslist, totalcount, countlist, artists, artistcountlist)
 
 
     elif int(inputs[0]) == 6:
