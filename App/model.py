@@ -24,16 +24,13 @@
  * Dario Correal - Version inicial
  """
 
-
-
-
+import datetime as dt
 import config as cf
 from DISClib.ADT import list as lt
 from DISClib.ADT import map as mp
+from DISClib.ADT import orderedmap as om
 from DISClib.DataStructures import mapentry as me
 from DISClib.Algorithms.Sorting import shellsort as sa
-from DISClib.ADT import orderedmap as om
-
 assert cf
 
 """
@@ -42,190 +39,335 @@ los mismos.
 """
 
 # Construccion de modelos
-def newAnalyzer():
-    analyzer = {"songs":None, "instrumentalness":None}
-    analyzer["songs"] = lt.newList("ARRAY_LIST", cmpfunction=compareTrackId)
-    analyzer["instrumentalness"] = om.newMap(omaptype="RBT", comparefunction=compareeFunction)
-    analyzer["acousticness"] = om.newMap(omaptype='RBT', comparefunction=compareeFunction)
-    analyzer["liveness"] = om.newMap(omaptype='RBT', comparefunction=compareeFunction)
-    analyzer["speechiness"] = om.newMap(omaptype='RBT', comparefunction=compareeFunction)
-    analyzer["energy"] = om.newMap(omaptype='RBT', comparefunction=compareeFunction)
-    analyzer["danceability"] = om.newMap(omaptype='RBT', comparefunction=compareeFunction)
-    analyzer["valence"] = om.newMap(omaptype='RBT', comparefunction=compareeFunction)
-    return analyzer
+def initCatalog():
+    catalog = {'events': None,
+               'content_features': None,
+               'sentiment_values': None,
+               'listening_events': None,
+               'genres': None}
+    
+    catalog['events'] = lt.newList(datastructure='ARRAY_LIST')
+    catalog['content_features'] = mp.newMap(20, maptype='PROBING', loadfactor=0.5)
+    catalog['hourTree'] = om.newMap(omaptype='RBT', comparefunction=compareHours)
+    catalog['genres'] = mp.newMap(10, maptype='PROBING', loadfactor=0.5)
+    catalog['hashtags'] = mp.newMap(maptype='PROBING', loadfactor=0.5)
+    catalog['UserHashtags'] = mp.newMap(maptype='PROBING', loadfactor=0.5)
+    return catalog
+
 
 # Funciones para agregar informacion al catalogo
-def add_song(analyzer, song):
-    lt.addLast(analyzer["songs"], song)
-    return analyzer
+def addHashtag(catalog, hashtag):
+    if(hashtag['vader_avg'] != ''):
+        mp.put(catalog['hashtags'], hashtag['hashtag'], float(hashtag['vader_avg']))
 
-def createIndex(analyzer, caract):
-    for song in lt.iterator(analyzer["songs"]):
-        updateIndex(analyzer[caract], song, caract)
-    return analyzer
-
-def updateIndex(map, song, caract):
-    instrumentalness = float(song[caract])
-    entry = om.get(map, instrumentalness)
+def updateHour_Tree(catalog, event):
+    Hour = timeStrip(event)
+    entry = om.get(catalog['hourTree'], Hour)
     if entry is None:
-        instruEntry = newDataEntry(song)
-        om.put(map, instrumentalness, instruEntry)
+        hourEntry = mp.newMap(numelements=9, maptype='PROBING')
+        
+        for genre in lt.iterator(mp.valueSet(catalog['genres'])):
+            if float(event['tempo']) >= genre['min_tempo'] and float(event['tempo']) <= genre['max_tempo']:
+                eventsInGenre = lt.newList(datastructure='ARRAY_LIST')
+                lt.addLast(eventsInGenre, event)
+                mp.put(hourEntry, genre['name'], eventsInGenre)
+
+        om.put(catalog['hourTree'], Hour, hourEntry)
     else:
-        instruEntry = me.getValue(entry)
-    addInstruIndex(instruEntry, song)
-    return map
-
-def addInstruIndex(instruEntry, song):
-    lst = instruEntry["lstSongs"]
-    lt.addLast(lst, song)
-    ArtistIndex = instruEntry["ArtistIndex"]
-    SongIdIndex = instruEntry["songIdIndex"]
-    ArtistEntry = mp.get(ArtistIndex, song["artist_id"])
-    SongIdEntry = mp.get(SongIdIndex, song["track_id"])
-
-    if(SongIdEntry is None):
-        eentry = newSongIdEntry(song["track_id"])
-        mp.put(SongIdIndex, song['track_id'], eentry)
-
-    if(ArtistEntry is None):
-        entry = newArtistEntry(song["artist_id"], song)
-        lt.addLast(entry["lstSongs"], song)
-        mp.put(ArtistIndex, song["artist_id"], entry)
-    if(ArtistEntry is not None):
-        entry = me.getValue(ArtistEntry)
-        lt.addLast(entry["lstSongs"], song)
-    return instruEntry
+        hourEntry = me.getValue(entry)
+        #mete el event al mapa
+        for genre in lt.iterator(mp.valueSet(catalog['genres'])):
+            if float(event['tempo']) >= genre['min_tempo'] and float(event['tempo']) <= genre['max_tempo']:
+                parejaEventsInGenre =  mp.get(hourEntry, genre['name'])
 
 
-def newDataEntry(song):
-    entry = {"ArtistIndex": None, "lstSongs":None, 'songIdIndex':None}
-    entry["ArtistIndex"] = mp.newMap(maptype="CHAINING", comparefunction=compareArtistId)
-    entry["lstSongs"] = lt.newList("ARRAY_LIST" , cmpfunction=compareTrackId)
-    entry['songIdIndex'] = mp.newMap(maptype='CHAINING', comparefunction=compareSongId)
-    return entry
+                if(parejaEventsInGenre is None):
+                    eventsInGenre = lt.newList(datastructure='ARRAY_LIST')
+                    lt.addLast(eventsInGenre, event)
+                    mp.put(hourEntry, genre['name'], eventsInGenre)
+                else:
+                    eventsInGenre = me.getValue(parejaEventsInGenre)
+                    lt.addLast(eventsInGenre, event)
+                
+                
+def updateUserHashtags(catalog, event):
+    key = (event['user_id'], event['track_id'], event['created_at'])
+    pareja = mp.get(catalog['UserHashtags'], key)
+    if(pareja is None):
+        listaHashtags = lt.newList(datastructure='ARRAY_LIST')
+        lt.addLast(listaHashtags, event['hashtag'])
+        mp.put(catalog['UserHashtags'], key, listaHashtags)
+    else:
+        listaHashtags = me.getValue(pareja)
+        lt.addLast(listaHashtags, event['hashtag'])
 
 
-def newArtistEntry(artist_id, song):
-    sEntry = {"Artist":None, "lstSongs":None}
-    sEntry["Artist"] = artist_id
-    sEntry["lstSongs"] = lt.newList("ARRAYLIST", compareArtistId)
-    return sEntry
 
-def newSongIdEntry(songId):
-    sEntry = {'songId':None}
-    sEntry["songId"] = songId
-    return sEntry
+
+
+def timeStrip(event):
+    fullDate = event['created_at'] 
+    DateObject = dt.datetime.strptime(fullDate, '%Y-%m-%d %H:%M:%S')
+    HourObject = DateObject.time()
+    return HourObject
+
+def addGenre(catalog, genrename, mintempo, maxtempo):
+    genre = newGenre(genrename, mintempo, maxtempo)
+    mp.put(catalog['genres'], genrename, genre)
+
+
+def addUserGenre(catalog, genrename, mintempo, maxtempo):
+    genre = newGenre(genrename, mintempo, maxtempo)
+    mp.put(catalog['genres'], genrename, genre)
+    pass
+
+
+def assignGenre(catalog, event):
+    for genre in lt.iterator(mp.valueSet(catalog['genres'])):
+        if float(event['tempo']) >= genre['min_tempo'] and float(event['tempo']) <= genre['max_tempo']:
+            lt.addLast(genre['events'], event)
+
+
+def addEvent(catalog, event):
+    lt.addLast(catalog['events'], event)
+    updateFeatures(catalog['content_features'], event)
+
+
+def updateFeatures(table, event):
+    '''Todos los features estan en una tabla de Hash, el key es el feature y el value es un rbt
+    este rbt tiene key un valor de instrumentalness (por ejemplo) y como valor un diccionario
+    el diccionario tiene dos elementos:
+        el elemento ['valueevents'] que contiene una array list con todos los eventos de reproduccion
+        el elemento ['track_ids'] que contiene un hash table con key = track_id y value = evento con ese track id
+
+    el anadido fue el segundo elemento. 
+    Lo hice de esta manera para poder completar los requerimientos 2 y 3, que piden reproducciones unicas y comparar diccionarios.
+
+    Otra cosa es que ahora solo se crean RBTs para features con valores que tiene sentido comparar, antes se creaba para todo feature
+
+    Ademas hice cambios para que los keys de los RBT sean floats, antes eran strings.
+    '''
+    i = 1
+    for feature in event:
+
+        if mp.size(table) < 9:
+            tree = om.newMap(omaptype='RBT', comparefunction=cmpFunction)
+            dict = {'valueevents' : None, 'track_ids':None}
+
+            dict['valueevents'] = lt.newList(datastructure='ARRAY_LIST')
+            dict['track_ids'] = mp.newMap(maptype='PROBING', loadfactor=0.5)
+
+            lt.addLast(dict['valueevents'], event)
+            mp.put(dict['track_ids'], event['track_id'], event)
+            
+            om.put(tree, float(event[feature]), dict)
+            mp.put(table, feature, tree)
+        else:
+            tree = me.getValue(mp.get(table, feature))
+            if om.contains(tree, float(event[feature])):
+                dict = me.getValue(om.get(tree, float(event[feature])))
+                lt.addLast(dict['valueevents'], event)
+                mp.put(dict['track_ids'], event['track_id'], event)
+            else:
+                dict = {'valueevents' : None, 'track_ids':None}
+                dict['track_ids'] = mp.newMap(maptype='PROBING', loadfactor=0.5)
+                dict['valueevents'] = lt.newList(datastructure='ARRAY_LIST')
+
+                lt.addLast(dict['valueevents'], event)
+                mp.put(dict['track_ids'], event['track_id'], event)
+
+                om.put(tree, float(event[feature]), dict)
+        if i == 9:
+            break
+        i += 1
+
 
 # Funciones para creacion de datos
+def newGenre(name, mintempo, maxtempo):
+    genre = {'name': name.lower(),
+             'min_tempo': mintempo,
+             'max_tempo': maxtempo,
+             'events': lt.newList(datastructure='ARRAY_LIST')}
+    return genre
+
 
 # Funciones de consulta
-def Requerimiento1(analyzer, initialInstru, finalInstru, caract):
-    if(om.size(analyzer[caract]) == 0):
-        createIndex(analyzer, caract)
-    lst = om.values(analyzer[caract], initialInstru, finalInstru)
-    totArtists = 0
-    totRepros = 0
-    totPistasUnicas = 0
-    for lstInstru in lt.iterator(lst):
-        totRepros += lt.size(lstInstru["lstSongs"])
-        totArtists += mp.size(lstInstru["ArtistIndex"])
-        totPistasUnicas += mp.size(lstInstru['songIdIndex'])
-    return totArtists, totRepros, totPistasUnicas
-
-def Requerimiento2(analyzer, menorEnergy, mayorEnergy, menorDance, mayorDance):
-    if(om.size(analyzer['energy']) == 0):
-        createIndex(analyzer, 'energy')
-        print('RBT de Energy creado')
-    else:
-        print('RBT de Energy ya existe')
-    if(om.size(analyzer['danceability']) == 0):
-        createIndex(analyzer, 'danceability')
-        print('RBT de Energy creado')
-    else:
-        print('RBT de danceability ya existe')
+def getCharacteristicReproductions(catalog, characteristic, minrange, toprange):
+    tree = me.getValue(mp.get(catalog['content_features'], characteristic))
+    #get => O(1)
+    total = 0
+    artists = lt.newList('ARRAY')
+    for value in lt.iterator(om.values(tree, minrange, toprange)):
+        #O(N) donde N es la cantidad de valores de feature en el rango pedido.
+        events = value['valueevents']
+        total += lt.size(events)
     
-    lstEnergy = om.values(analyzer["energy"], menorEnergy, mayorEnergy)
-    lstDance = om.values(analyzer['danceability'], menorDance, mayorDance)
+        for event in lt.iterator(events):
+            #O(M), donde M es la cantidad de canciones en el rango pedido del Feature
+            if not lt.isPresent(artists, event['artist_id']):
+                lt.addLast(artists, event['artist_id'])
+    total2 = lt.size(artists)
+    artists.clear()
+    return total, total2
 
-    lstEnergyDance = lt.newList(datastructure='ARRAY_LIST',  cmpfunction=compareTrackId)
+def getPartyMusic(catalog, minEne, maxEne, minDan, maxDan):
+    EneValues = om.values(me.getValue(mp.get(catalog['content_features'], 'energy')),minEne, maxEne)
+    DanValues = om.values(me.getValue(mp.get(catalog['content_features'], 'danceability')), minDan, maxDan)
+    #Values en un rango (RBT) => O()
+    lstEnergyDance = lt.newList(datastructure='ARRAY_LIST')
 
-    for lstDan in lt.iterator(lstDance):
-        for lst in lt.iterator(lstEnergy):
-            for songId in lt.iterator(mp.keySet(lstDan['songIdIndex'])):
-                esta1= 0
-                if(mp.contains(lst['songIdIndex'], songId)==True):
-                    esta1 = 1
-                if esta1 == 1:
-                    lt.addLast(lstEnergyDance, songId)
+    for dictDance in lt.iterator(DanValues):
+        #O(N) donde N es la cantidad de valores de feature en el rango pedido de Danceability.
+        trackIdsList_Dance = mp.valueSet(dictDance['track_ids'])
+        for dictEnergy in lt.iterator(EneValues):
+            #O(N') donde N' es la cantidad de valores de feature en el rango pedido de Energy.
+            for event in lt.iterator(trackIdsList_Dance):
+                #O(M), donde M es la cantidad de canciones en el rango pedido de Danceability.
+                if(mp.contains(dictEnergy['track_ids'], event['track_id']) == True):
+                    lt.addLast(lstEnergyDance, event)
 
-    return print(lt.size(lstEnergyDance))
-            
+    return lstEnergyDance
     
-def crimesSize(analyzer):
-    """
-    Número de crimenes
-    """
-    return lt.size(analyzer['songs'])
 
-
-def indexHeight(analyzer):
-    """
-    Altura del arbol
-    """
-    return om.height(analyzer['instrumentalness'])
-
-
-def indexSize(analyzer):
-    """
-    Numero de elementos en el indice
-    """
-    return om.size(analyzer['instrumentalness'])
-
-
-def minKey(analyzer):
-    """
-    Llave mas pequena
-    """
-    return om.minKey(analyzer['instrumentalness'])
-
-
-def maxKey(analyzer):
-    """
-    Llave mas grande
-    """
-    return om.maxKey(analyzer['instrumentalness'])
-
-
-
-
-
+def generosEnRango(catalog, minHour, maxHour):
+    DateMinHour = dt.datetime.strptime(minHour, '%H:%M:%S')
+    minHour = DateMinHour.time()
+    DateMaxHour = dt.datetime.strptime(maxHour, '%H:%M:%S')
+    maxHour = DateMaxHour.time()
+    #Cada funcion de la libreria datetime usada es O(1)
+    Reggae = 0
+    Down_Tempo = 0
+    Chill_out = 0
+    hip_hop = 0
+    Jazz_and_Funk = 0
+    Pop = 0
+    RyB = 0
+    Rock = 0
+    Metal = 0
+    Total = 0
     
+    treeValues = om.values(catalog['hourTree'], minHour, maxHour)
+    #Values en un rango (RBT) => O()
+    for value in lt.iterator(treeValues):
+        #O(N) donde N es la cantidad de valores en el rango pedido de tiempo.
+        for genre in lt.iterator(mp.valueSet(catalog['genres'])):
+            #O(C) donde C es la cantidad de generos, hay 9 generos.
+            genreName = genre['name']
+            generoLista = mp.get(value, genreName)
+            if generoLista is not None:
+                Lista = me.getValue(generoLista)
+                #get => O(1)
+                Total += lt.size(Lista)
+                #size => O(1)
+                if(genreName == "reggae"):
+                    Reggae += lt.size(Lista)
+                elif(genreName == "down-tempo"):
+                    Down_Tempo += lt.size(Lista)
+                elif(genreName == "chill-out"):
+                    Chill_out += lt.size(Lista)
+                elif(genreName == "hip-hop"):
+                    hip_hop += lt.size(Lista)
+                elif(genreName == "jazz and funk"):
+                    Jazz_and_Funk += lt.size(Lista)
+                elif(genreName == "pop"):
+                    Pop += lt.size(Lista)
+                elif(genreName == "r&b"):
+                    RyB += lt.size(Lista)
+                elif(genreName == "rock"):
+                    Rock += lt.size(Lista)
+                elif(genreName == "metal"):
+                    Metal += lt.size(Lista)
+
+    generos = (Reggae, Down_Tempo, Chill_out, hip_hop, Jazz_and_Funk, Pop, RyB, Rock, Metal)
+    genero = maxVariable(generos)
+    #Esta es una funcion que defini por fuera para evitar ocupar mucho espacio en una sola funcion, pero es O(1)
+
+    eventosConVader = om.newMap(omaptype='RBT', comparefunction=compareVader)
+    for value in lt.iterator(treeValues):
+        #O(N) donde N es la cantidad de valores en el rango pedido de tiempo.
+        generoBuscado = mp.get(value, genero)
+        if generoBuscado is not None:
+            Lista = me.getValue(generoBuscado)
+            for event in lt.iterator(Lista):
+                #O(M) donde M es la cantidad de eventos asocioados al genero con mas reproducciones
+                #En cada llave del RBT que tiene como llaves una hora.
+                key = (event['user_id'], event['track_id'], event['created_at'])
+                pareja = mp.get(catalog['UserHashtags'], key)
+                hashtags = me.getValue(pareja)
+                seenHashtags = 0
+                for hashtag in lt.iterator(hashtags):
+                    #O(H) Donde H es la cantidad de Hashtags asociados al evento.
+                    promedioVader = 0
+                    Hashtag_Vader = mp.get(catalog['hashtags'], hashtag)
+                    if Hashtag_Vader is not None:
+                        Vader = me.getValue(Hashtag_Vader)
+                        promedioVader += Vader
+                        seenHashtags += 1
+                    if hashtag == lt.lastElement(hashtags):
+                        if(seenHashtags != 0):
+                            promedioVader = (promedioVader/seenHashtags)
+
+                if(promedioVader != 0):
+                    om.put(eventosConVader, promedioVader, event)
+    return generos, genero, Total, eventosConVader
+
+
+def maxVariable(generos):
+    maximo = max(generos)
+    if maximo == generos[0]:
+        string = 'reggae'
+    elif maximo == generos[1]:
+        string = "down-tempo"
+    elif maximo == generos[2]:
+        string = "chill-out"
+    elif maximo == generos[3]:
+        string = "hip-hop"
+    elif maximo == generos[4]:
+        string = "jazz and funk"
+    elif maximo == generos[5]:
+        string = "pop"
+    elif maximo == generos[6]:
+        string = "r&b"
+    elif maximo == generos[7]:
+        string = "rock"
+    elif maximo == generos[8]:
+        string = 'metal'
+    return string
+
+
+
+
+
+def getStudyMusic(catalog, mininst, maxinst, mintempo, maxtempo):
+    insttree = me.getValue(mp.get(catalog['content_features'], 'instrumentalness'))
+    tempotree = me.getValue(mp.get(catalog['content_features'], 'tempo'))
+    instrumentals = om.values(insttree, mininst, maxinst)
+    tempos = om.values(tempotree, mintempo, maxtempo)
+    tracks = lt.newList('ARRAY_LIST')
+
+
 # Funciones utilizadas para comparar elementos dentro de una lista
-def compareeFunction(ins1, ins2):
-    if (ins1 == ins2):
+def cmpFunction(data1, data2):
+    if data1 == data2:
         return 0
-    elif (ins1 > ins2):
+    elif data1 > data2:
         return 1
     else:
-        return -1 
+        return -1
 
-def compareTrackId(song1, song2):
-    return song1['track_id'], song2['track_id']
+def compareHours(Hour1, Hour2):
+    if( Hour1 == Hour2):
+        return 0
+    if(Hour1 > Hour2):
+        return 1
+    else:
+        return -1
 
-def compareArtistId(id1, id2):
-    Artist = me.getKey(id2)
-    if (id1 == Artist):
+def compareVader(Vader1, Vader2):
+    if(Vader1 == Vader2):
         return 0
-    elif (id1 > Artist):
+    if(Vader1 > Vader2):
         return 1
     else:
-        return -1 
-def compareSongId(id1, id2):
-    songId = me.getKey(id2)
-    if (id1 == songId):
-        return 0
-    elif (id1 > songId):
-        return 1
-    else:
-        return -1   
+        return -1
 # Funciones de ordenamiento
