@@ -78,6 +78,9 @@ def printGenresInfo(genrelist, totalcount, countlist, artists, artistcountlist):
         genreartists = lt.getElement(artists, i)
         for n in range(1,11):
             print("Artista", n, ":", lt.getElement(genreartists, n))
+    countlist.clear()
+    artists.clear()
+    artistcountlist.clear()
 
 
 def printReq5(generos, genero, total, arbol):
