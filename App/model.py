@@ -122,7 +122,9 @@ def addUserGenre(catalog, genrename, mintempo, maxtempo):
     eventslists = om.values(tempotree, mintempo, maxtempo)
     artists = lt.newList('ARRAY_LIST')
     for lst in lt.iterator(eventslists):
+        #O(N) donde N es la cantidad de tempos diferentes que hay en el rango dado
         for event in lt.iterator(lst):
+            #O(M) donde M es la cantidad de eventos con el mismo tempo
             lt.addLast(genre['events'], event)
             count += 1
             if not lt.isPresent(artists, event['artist_id']):
@@ -243,6 +245,7 @@ def getGenreReproductions(catalog, genrename):
     count = lt.size(genre['events'])
     artists = lt.newList('ARRAY_LIST')
     for event in lt.iterator(genre['events']):
+        #O(N) donde N es la cantidad de eventos que hacen parte del género
         if not lt.isPresent(artists, event['artist_id']):
             lt.addLast(artists, event['artist_id'])
     return count, artists

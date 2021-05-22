@@ -152,6 +152,7 @@ while True:
         artists = lt.newList('ARRAY_LIST')
         artistcountlist = lt.newList('ARRAY_LIST')
         for genrename in genreslist:
+            #O(N) donde N es el número de géneros ingresados por el usuario
             if not mp.contains(catalog['genres'], genrename.lower()):
                 mintempo = float(input("Valor mínimo de tempo del género " + genrename + ": "))
                 maxtempo = float(input("Valor máximo de tempo del género" + genrename + ": "))
